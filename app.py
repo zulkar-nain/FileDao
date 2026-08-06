@@ -538,7 +538,7 @@ HTML_TEMPLATE = """
                     <button type="submit" class="clear-button">Delete all files</button>
                 </form>
             </div>
-            <ul>
+            <ul id="fileList">
                 {% for file in files %}
                     <li class="file-row">
                         <div class="file-main">
@@ -624,13 +624,28 @@ HTML_TEMPLATE = """
             const selectedFile = fileInput.files?.[0];
             updateDropzoneText(selectedFile ? selectedFile.name : '');
         });
+
+        async function refreshFileList() {
+            try {
+                const response = await fetch('{{ url_for('file_list') }}');
+                if (!response.ok) return;
+                const html = await response.text();
+                document.getElementById('fileList').innerHTML = html;
+            } catch (error) {
+                console.warn('Auto-refresh failed:', error);
+            }
+        }
+
+        setInterval(refreshFileList, 4000);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) refreshFileList();
+        });
     </script>
 </body>
 </html>
 """
 
-@app.route('/')
-def index():
+def get_uploaded_files():
     files = []
     for filename in sorted(os.listdir(app.config['UPLOAD_FOLDER'])):
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -644,7 +659,39 @@ def index():
             'is_image': ext in IMAGE_EXTENSIONS,
             'preview_url': url_for('view_file', filename=filename) if ext in IMAGE_EXTENSIONS else None
         })
-    return render_template_string(HTML_TEMPLATE, files=files)
+    return files
+
+@app.route('/')
+def index():
+    return render_template_string(HTML_TEMPLATE, files=get_uploaded_files())
+
+@app.route('/file-list')
+def file_list():
+    return render_template_string('''
+        {% for file in files %}
+            <li class="file-row">
+                <div class="file-main">
+                    {% if file.is_image %}
+                        <img class="thumb" src="{{ file.preview_url }}" alt="{{ file.name }}">
+                    {% else %}
+                        <div class="file-icon">📄</div>
+                    {% endif %}
+                    <div class="file-details">
+                        <a class="file-name" href="{{ url_for('download_file', filename=file.name) }}">{{ file.name }}</a>
+                        <span class="file-subtitle">{{ file.size }} KB • {{ file.modified }}</span>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    <a class="small-button primary" href="{{ url_for('download_file', filename=file.name) }}">Download</a>
+                    <form action="{{ url_for('delete_file', filename=file.name) }}" method="post" style="margin:0;">
+                        <button type="submit" class="small-button">Delete</button>
+                    </form>
+                </div>
+            </li>
+        {% else %}
+            <li class="empty">No files have been shared yet.</li>
+        {% endfor %}
+    ''', files=get_uploaded_files())
 
 @app.route('/qr.png')
 def qr_code():
