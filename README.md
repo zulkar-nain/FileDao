@@ -1,4 +1,4 @@
-# FileShare — Local File Transfer
+# FileDao — Local File Transfer
 
 Small, minimal Flask app to share files across devices on your local network.
 
