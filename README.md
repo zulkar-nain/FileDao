@@ -6,21 +6,21 @@ Small, minimal Flask app to share files across devices on your local network.
 - Upload and download files from a simple web UI
 - Image thumbnail previews
 - QR code to open the page on another device
-- Cross-device list refresh (polls `/file-list` every few seconds)
+- Instant cross-device updates with Socket.IO push events instead of polling
 
 ## Requirements
 - Python 3.8+
 - (Recommended) use a virtual environment
-- Python packages: `Flask`, `qrcode[pil]`, `Pillow`
+- Python packages: `Flask`, `Flask-SocketIO`, `eventlet`, `qrcode[pil]`, `Pillow`
 
 Install dependencies:
 
 ```bash
 # with pip
-pip install Flask qrcode[pil] Pillow
+pip install Flask Flask-SocketIO eventlet qrcode[pil] Pillow
 
 # or if you prefer a requirements file
-# echo "Flask\nqrcode[pil]\nPillow" > requirements.txt
+# echo "Flask\nFlask-SocketIO\neventlet\nqrcode[pil]\nPillow" > requirements.txt
 # pip install -r requirements.txt
 ```
 
@@ -45,14 +45,13 @@ The server runs on port `5000` by default. From another device on the same netwo
 
 ## Uploads
 - Uploaded files are saved to the `uploads/` directory (created automatically).
-- The UI polls the server for changes and will show new files on other connected devices automatically (short polling interval).
+- The UI listens for Socket.IO events and updates immediately when files are added, removed, or cleared on any connected device.
 
 ## Notes & Troubleshooting
 - This uses Flask's development server — do not use it as-is for production.
 - If your editor shows red underlines but `python -m py_compile app.py` runs fine, ensure VS Code is using the project virtualenv interpreter and that `Pillow` and `qrcode` are installed in that environment.
 
 ## Next steps (optional)
-- Use WebSockets (Socket.IO) for instant push updates instead of polling.
 - Add authentication or expiry for shared files.
 
 ---

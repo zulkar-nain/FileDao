@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Local File Transfer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="shell">
+        <div class="header">
+            <div>
+                <h2 class="title">Local File Share</h2>
+                <p class="subtle">Upload and download files in a polished, distraction-free space.</p>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="ghost" id="themeToggle" aria-label="Toggle color theme">🌙</button>
+            </div>
+        </div>
+
+        <div class="hero-row">
+            <div class="card" style="margin-bottom: 0; flex: 1; min-width: 240px;">
+                <h3>Upload a file</h3>
+                <p class="subtle">Drag a file into the drop area or click to browse from your device.</p>
+                <form id="uploadForm" action="{{ url_for('main.upload_file') }}" method="post" enctype="multipart/form-data">
+                    <label class="dropzone" id="dropzone" for="fileInput">
+                        <input type="file" id="fileInput" name="file" required>
+                        <div class="dropzone-content">
+                            <div class="dropzone-icon">⬆</div>
+                            <div>
+                                <span class="dropzone-title" id="dropzoneTitle">Drop your file here</span>
+                                <p class="dropzone-subtitle" id="dropzoneSubtitle">or click to browse</p>
+                            </div>
+                        </div>
+                    </label>
+                    <button type="submit">Upload</button>
+                </form>
+            </div>
+            <div class="qr-card">
+                <div class="qr-frame">
+                    <img src="{{ url_for('main.qr_code') }}" alt="QR code to open this page">
+                </div>
+                <div>
+                    <div class="qr-title">Scan to open</div>
+                    <div class="qr-subtitle">Quickly access this page from another device.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+                <h3 style="margin:0;">Shared files</h3>
+                <form action="{{ url_for('main.clear_all') }}" method="post" style="margin-left:auto;">
+                    <button type="submit" class="clear-button">Delete all files</button>
+                </form>
+            </div>
+            <ul id="fileList">
+                {% for file in files %}
+                    <li class="file-row">
+                        <div class="file-main">
+                            {% if file.is_image %}
+                                <img class="thumb" src="{{ file.preview_url }}" alt="{{ file.name }}">
+                            {% else %}
+                                <div class="file-icon">📄</div>
+                            {% endif %}
+                            <div class="file-details">
+                                <a class="file-name" href="{{ url_for('main.download_file', filename=file.name) }}">{{ file.name }}</a>
+                                <span class="file-subtitle">{{ file.size }} KB • {{ file.modified }}</span>
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <a class="small-button primary" href="{{ url_for('main.download_file', filename=file.name) }}">Download</a>
+                            <form action="{{ url_for('main.delete_file', filename=file.name) }}" method="post" style="margin:0;">
+                                <button type="submit" class="small-button">Delete</button>
+                            </form>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="empty">No files have been shared yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
