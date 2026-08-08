@@ -5,7 +5,7 @@ from flask_socketio import SocketIO
 
 from .config import Config
 
-socketio = SocketIO(cors_allowed_origins='*', async_mode='eventlet')
+socketio = SocketIO(cors_allowed_origins='*', async_mode='threading')
 
 
 def create_app():
