@@ -52,7 +52,7 @@ The server runs on port `5000` by default. From another device on the same netwo
 - If your editor shows red underlines but `python -m py_compile app.py` runs fine, ensure VS Code is using the project virtualenv interpreter and that `Pillow` and `qrcode` are installed in that environment.
 
 ## Next steps (optional)
-- Add authentication or expiry for shared files.
+- Add authentication or Session for sharing files.
 
 ---
 Created by the project workspace scripts.
