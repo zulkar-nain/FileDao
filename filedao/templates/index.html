@@ -14,11 +14,21 @@
                 <p class="subtle">Upload and download files in a polished, distraction-free space.</p>
             </div>
             <div class="header-actions">
+                {% if enforce_upload_limit %}
+                    <div class="limit-note" style="margin-right:12px; font-size:0.9rem; color:#666; align-self:center;">
+                        Upload limit: {{ (upload_limit_bytes // (1024*1024)) }} MB
+                    </div>
+                {% endif %}
                 <button type="button" class="ghost" id="themeToggle" aria-label="Toggle color theme">🌙</button>
             </div>
         </div>
 
         <div class="hero-row">
+            {% if upload_error %}
+                <div class="card" style="border-left:4px solid #e74c3c; margin-bottom:12px;">
+                    <strong style="color:#e74c3c">{{ upload_error }}</strong>
+                </div>
+            {% endif %}
             <div class="card" style="margin-bottom: 0; flex: 1; min-width: 240px;">
                 <h3>Upload a file</h3>
                 <p class="subtle">Drag a file into the drop area or click to browse from your device.</p>

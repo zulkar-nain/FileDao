@@ -16,13 +16,20 @@ from flask import (
 
 from .file_service import get_uploaded_files
 from .sockets import broadcast_file_update
+from .config import Config
 
 main_bp = Blueprint('main', __name__)
 
 
 @main_bp.route('/')
 def index():
-    return render_template('index.html', files=get_uploaded_files())
+    cfg = current_app.config
+    return render_template(
+        'index.html',
+        files=get_uploaded_files(),
+        enforce_upload_limit=cfg.get('ENFORCE_UPLOAD_LIMIT', Config.ENFORCE_UPLOAD_LIMIT),
+        upload_limit_bytes=cfg.get('UPLOAD_LIMIT_BYTES', Config.UPLOAD_LIMIT_BYTES),
+    )
 
 
 @main_bp.route('/file-list')
@@ -110,6 +117,35 @@ def upload_file():
 
     file = request.files['file']
     if file.filename:
+        enforce = current_app.config.get('ENFORCE_UPLOAD_LIMIT', Config.ENFORCE_UPLOAD_LIMIT)
+        limit = current_app.config.get('UPLOAD_LIMIT_BYTES', Config.UPLOAD_LIMIT_BYTES)
+
+        # Try to determine file size using available attributes, fallback to stream seek
+        size = None
+        if hasattr(file, 'content_length') and file.content_length:
+            size = file.content_length
+        elif request.content_length:
+            size = request.content_length
+        else:
+            try:
+                file.stream.seek(0, os.SEEK_END)
+                size = file.stream.tell()
+                file.stream.seek(0)
+            except Exception:
+                size = None
+
+        if enforce and size is not None and size > limit:
+            # Return to index with a helpful message
+            human_mb = round(limit / (1024 * 1024))
+            return render_template(
+                'index.html',
+                files=get_uploaded_files(),
+                upload_error=f'File too large — maximum allowed is {human_mb} MB.',
+                enforce_upload_limit=enforce,
+                upload_limit_bytes=limit,
+            )
+
+        # Save file normally
         file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], file.filename))
         broadcast_file_update()
 
@@ -119,3 +155,4 @@ def upload_file():
 @main_bp.route('/download/<path:filename>')
 def download_file(filename):
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+
