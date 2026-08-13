@@ -2,6 +2,8 @@ import io
 import os
 
 import qrcode
+import qrcode.image.svg
+import itsdangerous
 from flask import (
     Blueprint,
     current_app,
@@ -9,9 +11,9 @@ from flask import (
     render_template,
     render_template_string,
     request,
-    send_file,
     send_from_directory,
     url_for,
+    Response,
 )
 
 from .file_service import get_uploaded_files
@@ -19,6 +21,10 @@ from .sockets import broadcast_file_update
 from .config import Config
 
 main_bp = Blueprint('main', __name__)
+
+
+def _get_serializer():
+    return itsdangerous.URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
 
 
 @main_bp.route('/')
@@ -67,19 +73,66 @@ def file_list():
 @main_bp.route('/qr.png')
 def qr_code():
     target_url = url_for('main.index', _external=True)
-    qr = qrcode.QRCode(
-        version=4,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=12,
-        border=4,
-    )
+    qr = qrcode.QRCode(version=4, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=4, border=2)
     qr.add_data(target_url)
     qr.make(fit=True)
-    img = qr.make_image(fill_color='black', back_color='white')
-    buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
-    buffer.seek(0)
-    return send_file(buffer, mimetype='image/png')
+    img = qr.make_image(image_factory=qrcode.image.svg.SvgImage)
+    buf = io.BytesIO()
+    img.save(buf)
+    svg = buf.getvalue().decode('utf-8')
+    return Response(svg, mimetype='image/svg+xml')
+
+
+@main_bp.route('/share/<path:filename>')
+def share_file(filename):
+    # create a time-limited signed token for the filename and present a shareable link + QR
+    path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.isfile(path):
+        return "Not found", 404
+
+    s = _get_serializer()
+    token = s.dumps({'filename': filename}, salt=current_app.config.get('SHARE_TOKEN_SALT'))
+    link = url_for('main.shared_download', token=token, _external=True)
+
+    qr = qrcode.QRCode(version=4, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=4, border=2)
+    qr.add_data(link)
+    qr.make(fit=True)
+    img = qr.make_image(image_factory=qrcode.image.svg.SvgImage)
+    buf = io.BytesIO()
+    img.save(buf)
+    svg = buf.getvalue().decode('utf-8')
+
+    return render_template_string(
+        '''
+        <html><body style="font-family: system-ui, Arial; padding:24px;">
+        <h2>Share link for {{ filename }}</h2>
+        <p><a href="{{ link }}">{{ link }}</a></p>
+        <div style="margin-top:18px;">{{ svg|safe }}</div>
+        <p style="margin-top:18px;"><a href="{{ url_for('main.index') }}">Back</a></p>
+        </body></html>
+        ''',
+        filename=filename,
+        link=link,
+        svg=svg,
+    )
+
+
+@main_bp.route('/s/<token>')
+def shared_download(token):
+    s = _get_serializer()
+    try:
+        data = s.loads(token, salt=current_app.config.get('SHARE_TOKEN_SALT'), max_age=current_app.config.get('SHARE_TOKEN_EXPIRY'))
+    except itsdangerous.SignatureExpired:
+        return "Link expired", 410
+    except Exception:
+        return "Invalid link", 400
+
+    filename = data.get('filename')
+    path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.isfile(path):
+        return "Not found", 404
+
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
 
 @main_bp.route('/view/<path:filename>')

@@ -80,6 +80,7 @@
                         </div>
                         <div class="file-actions">
                             <a class="small-button primary" href="{{ url_for('main.download_file', filename=file.name) }}">Download</a>
+                            <a class="small-button" href="{{ url_for('main.share_file', filename=file.name) }}" target="_blank">Share</a>
                             <form action="{{ url_for('main.delete_file', filename=file.name) }}" method="post" style="margin:0;">
                                 <button type="submit" class="small-button">Delete</button>
                             </form>
